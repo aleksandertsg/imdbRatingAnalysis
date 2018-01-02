@@ -1,0 +1,54 @@
+---
+imdb_moviesle: Datasets cleaning. 
+---
+
+# IMDB imdb_moviesle_basics data cleaning
+```{r}
+
+#IMDB cleaning
+#Reference data : https://datasets.imdbws.com/
+imdb_tb <- read.delim(gzfile("data/imdb/title.basics.tsv.gz"))
+
+imdb_movies <- imdb_tb[imdb_tb$titleType == "movie", ]
+imdb_movies <- imdb_movies[imdb_movies$isAdult == 0, ]
+imdb_movies <- imdb_movies[imdb_movies$genres != "\\N",]
+imdb_movies$isAdult = NULL
+imdb_movies$endYear = NULL
+imdb_movies$runtimeMinutes = NULL
+imdb_movies$titleType = NULL
+
+write.csv(imdb_movies, "data/imdb/movies.csv")
+
+#Oscars cleaning.
+oscars <- read.csv("data/oscars/database.csv")
+
+
+best_pictures <- na.omit(oscars[(oscars$Award == "Best Picture" | 
+                                 oscars$Award == "Outstanding Picture" |
+                                 oscars$Award == "Outstanding Production" |
+                                 oscars$Award == "Outstanding Motion Picture" |
+                                 oscars$Award == "Best Motion Picture")
+                                & oscars$Winner == 1,], col = oscars$Winner)
+
+years <- levels(best_pictures$Year)   
+years[1] = "1928"
+years[2] = "1929"
+years[3] = "1930"
+years[4] = "1931"
+years[5] = "1932"
+years[6] = "1933"
+levels(best_pictures$Year) = factor(years)
+best_pictures$Winner = NULL
+
+names <- levels(best_pictures$Name)
+names[names == "Metro-Goldwyn-Mayer"] = "The Broadway Melody"
+names[names == "Paramount Famous Lasky"] = "Wings"
+levels(best_pictures$Name) = factor(names)
+
+films <- levels(best_pictures$Film)
+films[films == "Wings"] = "Paramount Famous Lasky"
+films[films == "The Broadway Melody"] = "Metro-Goldwyn-Mayer"
+levels(best_pictures$Film) = factor(films)
+
+write.csv(best_pictures, "data/oscars/best_pictures.csv")
+```
