@@ -1,12 +1,7 @@
----
-imdb_moviesle: Datasets cleaning. 
----
 
-# IMDB imdb_moviesle_basics data cleaning
+# IMDB title_basics data cleaning
+#Reference https://datasets.imdbws.com/
 ```{r}
-
-#IMDB cleaning
-#Reference data : https://datasets.imdbws.com/
 imdb_tb <- read.delim(gzfile("data/imdb/title.basics.tsv.gz"))
 
 imdb_movies <- imdb_tb[imdb_tb$titleType == "movie", ]
@@ -18,8 +13,12 @@ imdb_movies$runtimeMinutes = NULL
 imdb_movies$titleType = NULL
 
 write.csv(imdb_movies, "data/imdb/movies.csv")
+```
 
 #Oscars cleaning.
+#Reference https://www.kaggle.com/theacademy/academy-awards
+```{r}
+
 oscars <- read.csv("data/oscars/database.csv")
 
 
