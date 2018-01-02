@@ -15,7 +15,7 @@ imdb_movies$titleType = NULL
 write.csv(imdb_movies, "data/imdb/movies.csv")
 ```
 
-#Oscars cleaning.
+# Oscars cleaning 
 #Reference https://www.kaggle.com/theacademy/academy-awards
 ```{r}
 
@@ -42,12 +42,46 @@ best_pictures$Winner = NULL
 names <- levels(best_pictures$Name)
 names[names == "Metro-Goldwyn-Mayer"] = "The Broadway Melody"
 names[names == "Paramount Famous Lasky"] = "Wings"
+names <- trimws(names, which = c("both", "left", "right"))
 levels(best_pictures$Name) = factor(names)
 
 films <- levels(best_pictures$Film)
 films[films == "Wings"] = "Paramount Famous Lasky"
 films[films == "The Broadway Melody"] = "Metro-Goldwyn-Mayer"
+films <- trimws(films, which = c("both", "left", "right"))
 levels(best_pictures$Film) = factor(films)
+
 
 write.csv(best_pictures, "data/oscars/best_pictures.csv")
 ```
+
+# Connect oscars best pictures data to IMDB data 
+```{r}
+
+imdb_movies <- read.csv("data/imdb/movies.csv")
+titles <- levels(imdb_movies$primaryTitle) 
+titles <- trimws(titles, which = c("both", "left", "right"))
+levels(imdb_movies$primaryTitle) = factor(titles)
+
+oscars_ratings <- merge(x = best_pictures, y = imdb_movies, 
+                        by.x = c("Name", "Year"), by.y = c("primaryTitle", "startYear"),  all.x = TRUE)
+
+oscars_ratings$tconst[which(oscars_ratings$Name == "Wings")] = "tt0018578"
+oscars_ratings$tconst[which(oscars_ratings$Name == "Casablanca")] = "tt0034583"
+oscars_ratings$tconst[which(oscars_ratings$Name == "All about Eve")] = "tt0042192"
+oscars_ratings$tconst[which(oscars_ratings$Name == "MA*S*H")] = "tt0066026"
+oscars_ratings$tconst[which(oscars_ratings$Name == "The Godfather Part II")] = "tt0071562"
+oscars_ratings$tconst[which(oscars_ratings$Name == "One Flew over the Cuckoo's Nest")] = "tt0073486"
+oscars_ratings$tconst[which(oscars_ratings$Name == "Dances With Wolves")] = "tt0099348"
+oscars_ratings$tconst[which(oscars_ratings$Name == "Crash")] = "tt0375679"
+oscars_ratings$tconst[which(oscars_ratings$Name == "The Hurt Locker")] = "tt0887912"
+
+
+
+oscars_ratings <- merge(x = oscars_ratings, y = imdb_movies, 
+                        by = "tconst", all.x = TRUE)
+colnames(oscars_ratings)[which(colnames(oscars_ratings) == "genres.y")] = "genres"
+oscars_ratings <- subset(oscars_ratings, select = c("tconst", "Name", "Year", "Film", "genres"))
+write.csv(oscars_ratings, "data/oscars/best_pictures.csv")
+```
+
