@@ -38,6 +38,8 @@ nrow(imdb_principals.with_ratings.with_year.with_crew.2000_and_up)
 # rules
 for_apriori <- imdb_principals.with_ratings.with_year.with_crew.2000_and_up
 for_apriori$principalCast <- apply(for_apriori,1,function (x) {as.vector(strsplit(as.character(x[2]), ",")[[1]])})
+write.csv(imdb_principals.with_ratings.with_year.with_crew.2000_and_up, "data/for_apriori.csv")
+
 for_apriori$principalCast <- apply(for_apriori,1,function (x) {as.character(x[2])})
 for_apriori$principalCast <- as.data.frame(example)
 
@@ -57,6 +59,9 @@ inspect(rules)
 rules = apriori(for_apriori$principalCast,parameter=list(maxtime=0))
 rules.v1 = as(rules,"data.frame")
 rules.v1 = rules.v1 %>% arrange(-count)
+head(rules.v1, n = 10)
+
+draw_apriori(rules,"lift",100)
 
 rules.v1.sub <- subset(rules, subset=lhs %pin% "nm0000288")
 rules.sub.v1 = as(rules.v1.sub,"data.frame")
@@ -67,26 +72,26 @@ colnames(movies.2000_and_up)
 
 ##### 
 # drawing networks
-subrules2 <- head(sort(rules, by="count"), 20)
-ig <- plot( subrules2, method="graph", control=list(type="items") )
-# saveAsGraph seems to render bad DOT for this case
-tf <- tempfile( )
-saveAsGraph( subrules2, file = tf, format = "dot" )
-# clean up temp file if desired
-#unlink(tf)
+draw_apriori <- function (rules, by = "count", count = 10) {
+  subrules2 <- head(sort(rules, by=by), count)
+  subrules2.r <- as(subrules2,"data.frame")
+  print(subrules2.r)
+  ig <- plot( subrules2, method="graph", control=list(type="items") )
+  
+  ig_df <- get.data.frame( ig, what = "both" )
+  ig_df$vertices$label <- ifelse(ig_df$vertices$label == "",ig_df$vertices$count, ig_df$vertices$label)
 
-# let's bypass saveAsGraph and just use our igraph
-ig_df <- get.data.frame( ig, what = "both" )
-visNetwork(
-  nodes = data.frame(
-    id = ig_df$vertices$name
-    ,value = ig_df$vertices$lift # could change to lift or confidence
-    ,title = ifelse(ig_df$vertices$label == "",ig_df$vertices$name, ig_df$vertices$label)
-    ,ig_df$vertices
-  )
-  , edges = ig_df$edges
-) %>%
-  visEdges(arrows = "to", dashes=TRUE, length = 250) %>%
-  visOptions( highlightNearest = T )
-
-# https://bl.ocks.org/timelyportfolio/762aa11bb5def57dc27f
+  visNetwork(
+    nodes = data.frame(
+      id = ig_df$vertices$name
+      ,value = ig_df$vertices$lift # could change to lift or confidence
+      ,title = ig_df$vertices$label
+      ,shape = ifelse(grepl("assoc",ig_df$vertices$name), c("circle"), c("box"))
+      ,ig_df$vertices
+    )
+    , edges = ig_df$edges
+  ) %>%
+    visEdges(arrows = "to", dashes=TRUE) %>%
+    visOptions( highlightNearest = T )
+  # https://bl.ocks.org/timelyportfolio/762aa11bb5def57dc27f
+}
