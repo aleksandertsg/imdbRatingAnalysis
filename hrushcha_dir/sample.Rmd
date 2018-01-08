@@ -1,0 +1,192 @@
+---
+title: "Workfile"
+author: "Yaroslav"
+date: "December 26, 2017"
+output: pdf_document
+---
+
+```{r include=FALSE}
+(library(ggplot2)) 
+(library(readr)) 
+(library(gridExtra))
+(library(dplyr))
+library(plyr)
+(library(tidyr))
+(library(viridis))
+library(pheatmap)
+library(knitr)
+options(warn=-1)
+```
+
+
+```{r}
+movie_data<-read.csv("C:/Users/Yaroslav Hrushchak/Desktop/Data Mining/imdbRatingAnalysis/data/imdb/movies.csv")
+```
+
+```{r}
+analyse_years <- 1925:2015
+movie_data_filtered <- movie_data
+movie_data_filtered$startYear <- as.numeric(as.character(movie_data_filtered$startYear))
+movie_data_filtered <- movie_data_filtered[movie_data_filtered$startYear %in% analyse_years, ]
+movie_data_filtered$genres <- as.character(movie_data_filtered$genres)
+
+getGenres <- function(data_frame, year){
+    genres_temp = c()
+    genres_temp<- apply(data_frame[data_frame$startYear == year,], 1, function(x)
+      {
+        genres_temp <- c(genres_temp, (strsplit(x["genres"], ",")[[1]]))
+      })
+    genres_temp<- genres_temp %>% unlist() %>% as.character()
+    genres_temp
+}
+
+get_movie_genres_stats <- function(range){
+  genres <-  strsplit(movie_data_filtered$genres %>% table() %>% names() %>% paste(collapse=','), ",")[[1]] %>% unique()
+  years = data.frame(matrix(ncol = length(genres)+1, nrow = 0))
+  colnames(years) <- c("year",genres)
+  
+  for (i in range){
+    year_df <- (c(c("year"= i), sort(getGenres(movie_data_filtered, i) %>% table(), decreasing = TRUE))) %>% as.data.frame()
+    res_df <- setNames(data.frame(matrix(ncol = year_df %>% nrow(), nrow=0)), (year_df %>% rownames()))
+    res_df[nrow(res_df)+1,] <- year_df[,1]
+    years <- rbind.fill(years, res_df)
+  }
+  years
+}
+
+(as.data.frame(c(2015,sort(getGenres(movie_data_filtered, 2015) %>% table(), decreasing = TRUE))))
+
+#movie_data[movie_data$startYear==2015,c("primaryTitle","genres")] %>% na.omit() %>% filter(as.list(genres))
+#sort(getGenres(2015) %>% table(), decreasing = TRUE)
+#movie_data[apply(movie_data[,c("primaryTitle","genres","startYear")], 1, function(x){grepl("Fantastica",(x[2] %>% as.character()))}),c("primaryTitle","genres","startYear")] -> movies_documen
+#movie_data[movie_data$startYear==2015,] %>% na.omit()
+#movies_documen[movies_documen$startYear==2015,] %>% na.omit()
+#movie_data[,grepl("Drama", movie_data[,c("primaryTitle","genres")][,2]%>% as.character())]
+#sort(movie_data$genres %>% table(), decreasing = TRUE)
+```
+
+```{r  fig.width=20,fig.height=10}
+#Heatmap
+range <- 2000:2015
+movie_genres_stats <- get_movie_genres_stats(range)[,-c(1,3,13,25:29)] %>% (t)
+movie_genres_stats[is.na(movie_genres_stats)] <- 0
+movies_genres_stats_sum <- cbind(movie_genres_stats, movie_genres_stats %>% rowSums()) 
+movies_genres_stats_sum[order(movies_genres_stats_sum[,17]),] -> movies_genres_stats_sum_sorted
+movies_genres_stats_sum_sorted[,]/movies_genres_stats_sum_sorted[,17]
+(movies_genres_stats_sum_sorted[,]/movies_genres_stats_sum_sorted[,17])[,-ncol(movies_genres_stats_sum_sorted)]%>% pheatmap(cluster_rows=F,cluster_cols=F, labels_row = colnames(movie_genres_stats) , labels_col = seq(min(range), max(range)), by=1)
+#write.table((movies_genres_stats_sum_sorted[,]/movies_genres_stats_sum_sorted[,92])[,-ncol(movies_genres_stats_sum_sorted)], file = "genres_heatmap.csv", sep = ",", qmethod = "double")
+```
+
+
+```{r}
+movie_data<-read.csv("C:/Users/Yaroslav Hrushchak/Desktop/Data Mining/imdbRatingAnalysis/data/imdb/movies.csv")
+movie_ratings <- read.delim(gzfile("data/imdb/title.ratings.tsv.gz"))
+
+movies.ratings <- left_join(movie_data, movie_ratings)
+movies.ratings[,"startYear"] %>% as.character() %>%as.numeric() -> movies.ratings[,"startYear"]
+movies.ratings %>%  filter(startYear >= 2000)
+```
+
+
+
+```{r}
+movies <- read.csv("../imdbRatingAnalysis/data/imdb/movies.csv")
+ratings <- read.delim(gzfile("../imdbRatingAnalysis/data/imdb/title.ratings.tsv.gz"))
+movies_nominated <- read.csv("../imdbRatingAnalysis/data/imdb/best_pictures_nom2.csv")
+
+movies_nominated[,"Year"] <- (movies_nominated[,"Year"] %>% as.character() %>% as.numeric())
+movies_nominated <- movies_nominated %>% filter(movies_nominated$Year >= 2000)
+movies_nominated%>% filter(movies_nominated$Year == 2014)
+
+mr <- merge(x = movies, y = ratings, by = 'tconst',  all.x = TRUE)
+
+mr <- na.omit(mr, cols=seq_along(mr$averageRating, mr$numVotes), invert=FALSE)
+mr <- mr[mr$numVotes > 1000,]
+mr$avgRV = mr$averageRating / mr$numVotes
+
+mr2k <- mr
+mr2k[,"startYear"] <- (mr2k[,"startYear"] %>% as.character() %>% as.numeric())
+mr2k <- mr2k %>% filter(mr2k$startYear >= 2000)
+
+  top_by_year <- mr2k[0,]
+  colnames(top_by_year) = colnames(mr2k)
+  
+  for (i in mr2k$startYear %>% unique()){
+    temp <- mr2k %>% filter(mr2k$startYear==i)
+    temp[is.na(temp)] <- 0
+    top_by_year[nrow(top_by_year)+1,] <- temp[order(temp$numVotes, decreasing = TRUE),][1,]
+    top_by_year[nrow(top_by_year)+1,] <- temp[temp$originalTitle==(movies_nominated[movies_nominated$Year==i & movies_nominated$Winner==1,]$Name %>% as.character()),]
+  }
+  top_by_year <- top_by_year[order(top_by_year$startYear, decreasing = FALSE),]
+
+#write.table(top_by_year, file = "top_votes_by_year2.csv", sep = ",", qmethod = "double")
+```
+
+```{r}
+rbind.match.columns <- function(input1, input2) {
+    n.input1 <- ncol(input1)
+    n.input2 <- ncol(input2)
+ 
+    if (n.input2 < n.input1) {
+        TF.names <- which(names(input2) %in% names(input1))
+        column.names <- names(input2[, TF.names])
+    } else {
+        TF.names <- which(names(input1) %in% names(input2))
+        column.names <- names(input1[, TF.names])
+    }
+ 
+    return(rbind(input1[, column.names], input2[, column.names]))
+}
+```
+
+
+```{r}
+movies_nominated <- read.csv("../imdbRatingAnalysis/data/imdb/best_pictures_nom2.csv")
+movies_nominated[,"Year"] <- (movies_nominated[,"Year"] %>% as.character() %>% as.numeric())
+movies_nominated <- movies_nominated %>% filter(movies_nominated$Year >= 2000)
+movies_nominated%>% filter(movies_nominated$Year == 2014)
+
+##genre win probability
+all_genres <- c()
+all_genres_probs <- c()
+movies_nominated$genres %>% unique() %>% as.character() %>% sapply(function(x){c(all_genres, strsplit(x, ",")[[1]])}) %>% unlist() %>% as.character() %>% unique() -> all_genres
+for (g in all_genres){
+  movies_nominated_of_genre <- movies_nominated %>% filter(grepl(g,movies_nominated$genres))
+  result = c(length(which(movies_nominated_of_genre$Winner==1)) / nrow(movies_nominated_of_genre))
+  names(result) = g
+  all_genres_probs <- c(all_genres_probs, result)
+}
+all_genres_probs <- all_genres_probs %>% as.data.frame() 
+all_genres_probs <- all_genres_probs[all_genres_probs$.>0,,drop=FALSE]
+#all_genres_probs <- cbind(rownames(all_genres_probs),all_genres_probs)
+all_genres_probs[order(-all_genres_probs$.),,drop = FALSE]%>% as.data.frame() #%>% write.table(file = "nom_genres_prob_2k.csv", sep = ",", qmethod = "double")
+#%>% kable() 
+
+##end genre win
+
+a <-  data.frame()
+for (i in movies_nominated$Year %>% unique()){
+  temp <- movies_nominated %>% filter(movies_nominated$Year==i)
+  genres_temp = c()
+  genres_temp<- apply(movies_nominated[movies_nominated$Year == i,], 1, function(x)
+    {
+      genres_temp <- c(genres_temp, (strsplit(x["genres"], ",")[[1]]))
+    })
+  genres_temp <- genres_temp %>% unlist() %>% as.character()
+  a <- rbind.fill(a,(c(won=(temp %>% filter(temp$Winner==1))$genres %>% as.character(), nom=genres_temp %>% unique())) %>% as.data.frame() %>% t() %>% as.data.frame())# %>% print()
+}
+#a %>% write.table(file = "nom_won_genres.csv", sep = ",", qmethod = "double")
+
+check <- function(xs){
+  c <- c()
+  for (x in xs){
+    c <- c(c,grepl(x,movies_nominated$genres))
+  }
+  any(c)
+}
+
+check(c("Drama","Cowmedy"))
+
+movies_nominated %>% filter(check(genres[1]))
+```
+
