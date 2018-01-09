@@ -1,0 +1,110 @@
+---
+title: "Some analysis"
+---
+
+```{r message=FALSE, warning=FALSE}
+library(wordcloud2)
+library(tm)
+library(dplyr)
+library(SnowballC)
+```
+
+```{r}
+movies <- read.csv("data/oscars/best_pictures.csv", stringsAsFactors = FALSE)
+plots <- Corpus(VectorSource(movies$plot.outline))
+docs <- Corpus(VectorSource(movies$plot.outline))
+#inspect(plots)
+```
+
+```{r}
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(plots, toSpace, "/")
+docs <- tm_map(plots, toSpace, "@")
+docs <- tm_map(plots, toSpace, "\\|")
+
+docs <- tm_map(docs, PlainTextDocument)
+
+docs <- jsonlite::read_json("../../../Downloads/result.json")
+docs <- do.call("rbind", docs)
+
+docs <- Corpus(VectorSource(docs))
+docs <- data.frame(docs)
+docs <- Corpus(VectorSource(docs)
+
+
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords, c("the", "take", "will", "new", "also")) 
+docs <- tm_map(docs, stemDocument)
+
+docs <- tm_map(docs, removePunctuation)
+
+docs <- tm_map(docs, stripWhitespace)
+
+
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+
+png("MachineLearningCloud.png", width=12, height=8, units="in", res=300)
+wordcloud(docs, max.words = 200, random.order = FALSE,  colors=brewer.pal(8, "Dark2"))
+dev.off()
+
+wordcloud2(docs)
+letterCloud(docs, word = "MOVIE", color='black')
+save.image()
+```
+
+
+```{r}
+movies <- read.csv("data/imdb/movies.csv")
+ratings <- read.delim(gzfile("data/imdb/title.ratings.tsv.gz"))
+mr <- merge(x = movies, y = ratings, 
+                        by = 'tconst',  all.x = TRUE)
+
+
+mr <- na.omit(mr, cols=seq_along(mr$averageRating, mr$numVotes), invert=FALSE)
+mr <- mr[mr$numVotes > 1000,]
+mr$avgRV = mr$averageRating / mr$numVotes
+
+mr %>% group_by(startYear) %>% summarise(max_vote = max(numVotes))
+
+```
+
+
+```{r}
+
+for_apriori <- read.csv("../../../Downloads/for_apriori.csv")
+colnames(for_apriori)
+for_apriori$principalCast <- apply(for_apriori,1,function (x) {as.vector(strsplit(as.character(x[3]), ",")[[1]])})
+
+str(for_apriori$principalCast)
+
+rulz <- apriori(for_apriori$principalCast, parameter = list(support=3/length(for_apriori$principalCast), conf=0.5, maxtime=0))
+
+
+r <- subset(rulz, subset=lhs %in% "nm0000158")
+arules::inspect(r)
+
+inspect(rulz)
+
+nrow(apr)
+str(apr$principalCast)
+items <- strsplit(as.character(apr$principalCast), ",")
+trans3 <- as(it, "transactions")
+
+it = apr$principalCast
+it <- strsplit(as.character(it), ",")
+
+rules <- apriori(trans3, parameter = list(conf = 0.0000000001, target="rules", minlen=1))
+
+inspect(rules)
+```
+
