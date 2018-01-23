@@ -6,6 +6,11 @@ output:
   pdf: default
 ---
 
+# Final poster
+
+![alt text](https://github.com/aramYnwa/imdbRatingAnalysis/blob/master/plakat.png "Final poster")
+
+
 # Exercise 1
 
 This project is not commercial and is not related to any business case
